@@ -49,6 +49,9 @@ export default function App() {
   const setActiveTab = useStore((s) => s.setActiveTab);
   const settings = useStore((s) => s.settings);
 
+  // Determine if camera tabs are active
+  const showCamera = activeTab === "translate" || activeTab === "learn";
+
   // Use refs for store actions to avoid dependency loops
   const storeRef = useRef(useStore.getState());
   useEffect(() => {
@@ -65,7 +68,7 @@ export default function App() {
     landmarks,
     fps,
     isDetecting,
-  } = useMediaPipe(videoRef, canvasRef, activeTab === "translate" || activeTab === "learn");
+  } = useMediaPipe(videoRef, canvasRef, showCamera);
 
   const { isLoading: onnxLoading, useHeuristic, predict } = useONNX();
 
@@ -165,48 +168,45 @@ export default function App() {
 
       {/* Main Content */}
       <main className="app-main">
+        {/*
+          Camera is rendered ONCE and persisted across Translate/Learn tabs.
+          This prevents camera re-init and MediaPipe losing the video stream.
+          We hide it with CSS when not on a camera tab.
+        */}
+        <div style={{ display: showCamera ? "block" : "none" }}>
+          <div className="translate-layout">
+            <div className="translate-left">
+              <VideoFeed
+                videoRef={videoRef}
+                canvasRef={canvasRef}
+                fps={fps}
+                isDetecting={isDetecting}
+                isLoading={mpLoading || onnxLoading}
+              />
+              <PredictionDisplay currentPrediction={currentPrediction} />
+            </div>
+            <div className="translate-right">
+              <AnimatePresence mode="wait">
+                {activeTab === "translate" && (
+                  <motion.div key="translate-panel" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                      <WordBuilder />
+                      <VoiceInput />
+                    </div>
+                  </motion.div>
+                )}
+                {activeTab === "learn" && (
+                  <motion.div key="learn-panel" variants={pageVariants} initial="initial" animate="animate" exit="exit">
+                    <LearnMode />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Non-camera tabs */}
         <AnimatePresence mode="wait">
-          {activeTab === "translate" && (
-            <motion.div key="translate" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-              <div className="translate-layout">
-                <div className="translate-left">
-                  <VideoFeed
-                    videoRef={videoRef}
-                    canvasRef={canvasRef}
-                    fps={fps}
-                    isDetecting={isDetecting}
-                    isLoading={mpLoading || onnxLoading}
-                  />
-                  <PredictionDisplay currentPrediction={currentPrediction} />
-                </div>
-                <div className="translate-right">
-                  <WordBuilder />
-                  <VoiceInput />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "learn" && (
-            <motion.div key="learn" variants={pageVariants} initial="initial" animate="animate" exit="exit">
-              <div className="translate-layout">
-                <div className="translate-left">
-                  <VideoFeed
-                    videoRef={videoRef}
-                    canvasRef={canvasRef}
-                    fps={fps}
-                    isDetecting={isDetecting}
-                    isLoading={mpLoading || onnxLoading}
-                  />
-                  <PredictionDisplay currentPrediction={currentPrediction} />
-                </div>
-                <div className="translate-right">
-                  <LearnMode />
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           {activeTab === "dictionary" && (
             <motion.div key="dictionary" variants={pageVariants} initial="initial" animate="animate" exit="exit">
               <DictionaryMode />
